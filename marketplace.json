@@ -1,0 +1,35 @@
+{
+  "name": "ktp-creator-plugins",
+  "owner": {
+    "name": "KTP Creator Pro",
+    "email": "local"
+  },
+  "metadata": {
+    "description": "Custom plugins for KTP Creator Pro project",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "product-manager",
+      "source": "./product-manager",
+      "description": "Product Manager skill for creating well-structured GitHub issues from feature requests and bug reports",
+      "version": "1.0.0",
+      "author": {
+        "name": "Custom"
+      },
+      "category": "productivity",
+      "tags": ["product-management", "github", "issues"]
+    },
+    {
+      "name": "agent-knowledge",
+      "source": "./agent-knowledge",
+      "description": "Agent Knowledge Base - Captures and organizes learnings from external AI agents into a structured knowledge base",
+      "version": "1.0.0",
+      "author": {
+        "name": "Custom"
+      },
+      "category": "productivity",
+      "tags": ["knowledge-base", "agents", "documentation"]
+    }
+  ]
+}

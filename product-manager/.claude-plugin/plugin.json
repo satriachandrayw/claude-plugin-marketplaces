@@ -1,0 +1,8 @@
+{
+  "name": "product-manager",
+  "description": "Product Manager skill for creating well-structured GitHub issues from feature requests and bug reports",
+  "author": {
+    "name": "Custom",
+    "email": "local"
+  }
+}
