@@ -1,11 +1,11 @@
 {
-  "name": "ktp-creator-plugins",
+  "name": "claude-plugin-marketplaces",
   "owner": {
     "name": "KTP Creator Pro",
     "email": "local"
   },
   "metadata": {
-    "description": "Custom plugins for KTP Creator Pro project",
+    "description": "Custom plugins and marketplace for Claude Code skills",
     "version": "1.0.0"
   },
   "plugins": [

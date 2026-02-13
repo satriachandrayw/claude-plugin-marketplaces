@@ -1,6 +1,6 @@
-# KTP Creator Plugins
+# Claude Plugin Marketplaces
 
-Custom plugins for KTP Creator Pro project.
+Custom plugins and marketplace for Claude Code skills.
 
 ## Plugins
 
@@ -14,7 +14,7 @@ Agent Knowledge Base - Captures and organizes learnings from external AI agents 
 
 In Claude Code, run:
 ```
-/plugin add https://github.com/YOUR_USERNAME/ktp-creator-plugins
+/plugin add https://github.com/YOUR_USERNAME/claude-plugin-marketplaces
 ```
 
 ## Usage
