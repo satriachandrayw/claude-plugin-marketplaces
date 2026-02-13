@@ -14,7 +14,7 @@ Agent Knowledge Base - Captures and organizes learnings from external AI agents 
 
 In Claude Code, run:
 ```
-/plugin add https://github.com/YOUR_USERNAME/claude-plugin-marketplaces
+/plugin add https://github.com/satriachandrayw/claude-plugin-marketplaces
 ```
 
 ## Usage
