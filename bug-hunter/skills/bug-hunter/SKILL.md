@@ -1,7 +1,7 @@
 ---
 name: bug-hunter
-description: Random bug hunter that selects files weighted by recency, analyzes with context for bugs (code quality, logic, security), and creates GitHub issues. Use when user says "hunt bugs", "bug hunt", or "/bug-hunter".
-version: 1.0.0
+description: Random bug hunter that selects files weighted by recency, analyzes with context for bugs (code quality, logic, security), and creates GitHub issues. Use when user says "hunt bugs", "bug hunt", or "/bug-hunter". Supports automation instructions like "approve all" for hands-free operation.
+version: 1.1.0
 ---
 
 # Bug Hunter Skill
@@ -14,6 +14,22 @@ Activate this skill when user:
 - Says "hunt bugs", "bug hunt", "run bug hunter"
 - Uses `/bug-hunter` command
 - Asks to "scan for bugs" or "find issues"
+
+### Automation Instructions
+
+The skill accepts additional instructions for automated, hands-free operation:
+
+| Command | Behavior |
+|---------|----------|
+| `/bug-hunter` | Interactive mode - present findings and wait for user approval |
+| `/bug-hunter approve all` | Auto-approve all findings, create issues without prompting |
+| `/bug-hunter approve 1,2,3` | Auto-approve specific findings by number |
+| `/bug-hunter reject` | Auto-reject all findings, skip issue creation |
+| `/bug-hunter critical-only` | Auto-approve only critical severity findings |
+| `/bug-hunter high+` | Auto-approve high and critical severity findings |
+| `/bug-hunter security` | Auto-approve only security category findings |
+
+When automation instructions are provided, the skill executes the full flow (selection → analysis → findings) and then automatically performs the specified action without waiting for user input.
 
 ## Core Principle
 
@@ -152,6 +168,8 @@ For each file, check:
 
 After analysis, present findings in this format:
 
+### Interactive Mode Format
+
 ```markdown
 ## Bug Hunt Report
 
@@ -172,9 +190,42 @@ After analysis, present findings in this format:
 
 #### 2. [SEVERITY] [CATEGORY] Another Finding
 ...
+
+---
+
+**Actions:**
+- `approve all` - Create GitHub issues for all N findings
+- `approve 1,2` - Create issues for findings 1 and 2 only
+- `approve 1` - Create issue for finding 1 only
+- `reject` - Discard all, no issues created
 ```
 
-### Example Report
+### Automation Mode Format
+
+When automation instructions are provided, include the mode in the report header:
+
+```markdown
+## Bug Hunt Report
+
+**File:** `src/handlers/auth.ts`
+**Context Files:** `src/lib/session.ts`, `src/types/user.ts`
+**Scanned:** YYYY-MM-DD HH:MM
+**Mode:** Automated (<instruction>)
+
+---
+
+### Findings (N total)
+
+[Same finding format as above]
+
+---
+
+Auto-executing: <instruction>
+
+[Result of automation action]
+```
+
+### Example Report (Interactive)
 
 ```markdown
 ## Bug Hunt Report
@@ -416,6 +467,58 @@ Track all bug hunts in `docs/bug-hunts/audit-log.md`.
 
 ---
 
+## Automation Mode
+
+When the user provides additional instructions with the trigger command, the skill operates in automation mode.
+
+### Parsing Instructions
+
+1. **Extract instruction from trigger:**
+   - `/bug-hunter approve all` → instruction = `approve all`
+   - `/bug-hunter critical-only` → instruction = `critical-only`
+   - `/bug-hunter` → instruction = `interactive` (default)
+
+2. **Store instruction for later execution:**
+   - Continue with normal flow: selection → analysis → findings
+   - After presenting findings, check stored instruction
+
+3. **Execute based on instruction:**
+
+   | Instruction | Action |
+   |-------------|--------|
+   | `approve all` | Create issues for ALL findings automatically |
+   | `approve N,M,...` | Create issues for specified finding numbers |
+   | `reject` | Skip issue creation, just log the scan |
+   | `critical-only` | Filter to critical severity, auto-approve those |
+   | `high+` | Filter to high AND critical severity, auto-approve |
+   | `security` | Filter to security category, auto-approve those |
+   | `interactive` | Present findings and wait for user input |
+
+### Automation Flow
+
+```dot
+digraph automation {
+    rankdir=TB;
+
+    "Parse trigger + instructions" [shape=box];
+    "Has automation instruction?" [shape=diamond];
+    "Run normal flow" [shape=box];
+    "Present findings" [shape=box];
+    "Auto-execute instruction" [shape=box];
+    "Wait for user input" [shape=box];
+    "Continue to issue creation" [shape=box];
+
+    "Parse trigger + instructions" -> "Has automation instruction?";
+    "Has automation instruction?" -> "Run normal flow" [label="yes"];
+    "Has automation instruction?" -> "Run normal flow" [label="no (interactive)"];
+    "Run normal flow" -> "Present findings";
+    "Present findings" -> "Auto-execute instruction" [label="automation mode"];
+    "Present findings" -> "Wait for user input" [label="interactive mode"];
+    "Auto-execute instruction" -> "Continue to issue creation";
+    "Wait for user input" -> "Continue to issue creation";
+}
+```
+
 ## Complete Workflow
 
 ```dot
@@ -423,24 +526,32 @@ digraph bug_hunter {
     rankdir=TB;
 
     "User triggers bug hunt" [shape=ellipse];
+    "Parse automation instruction" [shape=box];
     "Get trackable files" [shape=box];
     "Calculate weights" [shape=box];
     "Select file randomly" [shape=box];
     "Load context files" [shape=box];
     "Analyze for bugs" [shape=box];
     "Present findings" [shape=box];
+    "Automation mode?" [shape=diamond];
+    "Auto-execute instruction" [shape=box];
     "User reviews" [shape=diamond];
     "Create GitHub issues" [shape=box];
     "Update audit log" [shape=box];
     "Done" [shape=doublecircle];
 
-    "User triggers bug hunt" -> "Get trackable files";
+    "User triggers bug hunt" -> "Parse automation instruction";
+    "Parse automation instruction" -> "Get trackable files";
     "Get trackable files" -> "Calculate weights";
     "Calculate weights" -> "Select file randomly";
     "Select file randomly" -> "Load context files";
     "Load context files" -> "Analyze for bugs";
     "Analyze for bugs" -> "Present findings";
-    "Present findings" -> "User reviews";
+    "Present findings" -> "Automation mode?";
+    "Automation mode?" -> "Auto-execute instruction" [label="yes"];
+    "Automation mode?" -> "User reviews" [label="no"];
+    "Auto-execute instruction" -> "Create GitHub issues" [label="approve"];
+    "Auto-execute instruction" -> "Update audit log" [label="reject"];
     "User reviews" -> "Create GitHub issues" [label="approve"];
     "User reviews" -> "Update audit log" [label="reject"];
     "Create GitHub issues" -> "Update audit log";
@@ -450,7 +561,9 @@ digraph bug_hunter {
 
 ---
 
-## Example Interaction
+## Example Interactions
+
+### Interactive Mode (Default)
 
 **User:** `/bug-hunter`
 
@@ -533,6 +646,190 @@ Bug hunt complete! 2 issues created.
 
 ---
 
+### Automated Mode: Approve All
+
+**User:** `/bug-hunter approve all`
+
+**Bug Hunter:**
+```
+Bug Hunt Starting... [Automation: approve all]
+
+Selecting file...
+   Weighted by recency, checking scan history...
+
+Selected: src/handlers/auth.ts
+   Last modified: 2 days ago
+   Previously scanned: No
+
+Loading context files...
+   -- src/lib/session.ts
+   -- src/types/user.ts
+
+Analyzing for bugs...
+```
+
+[After analysis]
+
+```
+## Bug Hunt Report
+
+**File:** `src/handlers/auth.ts`
+**Context Files:** `src/lib/session.ts`, `src/types/user.ts`
+**Scanned:** 2026-02-19 14:32
+**Mode:** Automated (approve all)
+
+---
+
+### Findings (3 total)
+
+#### 1. [CRITICAL] [SECURITY] SQL Injection Vulnerability
+**Location:** `auth.ts:45`
+
+#### 2. [HIGH] [BUG] Race Condition in Session Creation
+**Location:** `auth.ts:78-82`
+
+#### 3. [LOW] [CODE-QUALITY] Unused Import
+**Location:** `auth.ts:3`
+
+---
+
+Auto-executing: approve all
+
+Creating issues for all 3 findings...
+
+Created issue #142: [SECURITY] SQL Injection Vulnerability in auth.ts
+   https://github.com/owner/repo/issues/142
+
+Created issue #143: [BUG] Race Condition in Session Creation
+   https://github.com/owner/repo/issues/143
+
+Created issue #144: [CODE-QUALITY] Unused Import in auth.ts
+   https://github.com/owner/repo/issues/144
+
+Audit log updated: docs/bug-hunts/audit-log.md
+
+Bug hunt complete! 3 issues created.
+```
+
+---
+
+### Automated Mode: Critical Only
+
+**User:** `/bug-hunter critical-only`
+
+**Bug Hunter:**
+```
+Bug Hunt Starting... [Automation: critical-only]
+
+Selecting file...
+   Weighted by recency, checking scan history...
+
+Selected: src/handlers/auth.ts
+   Last modified: 2 days ago
+
+Loading context files...
+   -- src/lib/session.ts
+   -- src/types/user.ts
+
+Analyzing for bugs...
+```
+
+[After analysis]
+
+```
+## Bug Hunt Report
+
+**File:** `src/handlers/auth.ts`
+**Context Files:** `src/lib/session.ts`, `src/types/user.ts`
+**Scanned:** 2026-02-19 14:32
+**Mode:** Automated (critical-only)
+
+---
+
+### Findings (3 total)
+
+#### 1. [CRITICAL] [SECURITY] SQL Injection Vulnerability ✓ AUTO-APPROVED
+**Location:** `auth.ts:45`
+
+#### 2. [HIGH] [BUG] Race Condition in Session Creation
+**Location:** `auth.ts:78-82`
+
+#### 3. [LOW] [CODE-QUALITY] Unused Import
+**Location:** `auth.ts:3`
+
+---
+
+Filtering to critical severity: 1 of 3 findings selected
+
+Auto-executing: approve critical-only
+
+Created issue #142: [SECURITY] SQL Injection Vulnerability in auth.ts
+   https://github.com/owner/repo/issues/142
+
+Audit log updated: docs/bug-hunts/audit-log.md
+
+Bug hunt complete! 1 issue created (2 findings filtered out).
+```
+
+---
+
+### Automated Mode: Reject All
+
+**User:** `/bug-hunter reject`
+
+**Bug Hunter:**
+```
+Bug Hunt Starting... [Automation: reject]
+
+Selecting file...
+   Weighted by recency, checking scan history...
+
+Selected: src/handlers/auth.ts
+   Last modified: 2 days ago
+
+Loading context files...
+   -- src/lib/session.ts
+   -- src/types/user.ts
+
+Analyzing for bugs...
+```
+
+[After analysis]
+
+```
+## Bug Hunt Report
+
+**File:** `src/handlers/auth.ts`
+**Context Files:** `src/lib/session.ts`, `src/types/user.ts`
+**Scanned:** 2026-02-19 14:32
+**Mode:** Automated (reject)
+
+---
+
+### Findings (3 total)
+
+#### 1. [CRITICAL] [SECURITY] SQL Injection Vulnerability
+**Location:** `auth.ts:45`
+
+#### 2. [HIGH] [BUG] Race Condition in Session Creation
+**Location:** `auth.ts:78-82`
+
+#### 3. [LOW] [CODE-QUALITY] Unused Import
+**Location:** `auth.ts:3`
+
+---
+
+Auto-executing: reject
+
+No issues created (all findings rejected).
+
+Audit log updated: docs/bug-hunts/audit-log.md
+
+Bug hunt complete! 0 issues created, 3 findings logged.
+```
+
+---
+
 ## Notes
 
 - **Random exploration** - Each run explores a different corner of the code
@@ -540,3 +837,6 @@ Bug hunt complete! 2 issues created.
 - **Batch review** - User sees all findings before any issues are created
 - **Audit trail** - All scans logged for tracking and to weight future selections
 - **Trivial bugs welcome** - The goal is finding small issues that accumulate, not just critical bugs
+- **Automation support** - Pass instructions like `approve all` for hands-free CI/CD integration
+- **Filter by severity** - Use `critical-only` or `high+` to focus on important findings
+- **Filter by category** - Use `security` to focus on security-related issues only
