@@ -271,3 +271,24 @@ gh pr create --web
 ```
 
 ---
+
+## Error Handling
+
+| Scenario | Action |
+|----------|--------|
+| No commits ahead of main | Warn: "No changes to create PR. Commit your changes first." |
+| Branch doesn't track remote | Push with `-u origin <branch>` |
+| Issue fetch fails | Continue without issue details, warn in output |
+| PR already exists | Open existing PR: `gh pr view <number> --web` |
+| `gh` not authenticated | Guide user: `gh auth login` |
+| No write access to repo | Suggest fork workflow |
+
+### Check for Existing PR
+
+```bash
+gh pr list --head <branch-name> --json number,url
+```
+
+If PR exists, show URL instead of creating duplicate.
+
+---
