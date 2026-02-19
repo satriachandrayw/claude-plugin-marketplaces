@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Custom plugins and marketplace for Claude Code skills",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   "plugins": [
     {
@@ -48,7 +48,7 @@
       "description": "TDD-based bug fixer that reads GitHub issues, implements fixes, and creates PRs with severity-based batching",
       "version": "1.0.0",
       "author": {
-        "name": "Custom"
+        "name": "Satria Chandra"
       },
       "category": "productivity",
       "tags": ["bug-fixing", "tdd", "github", "automation"]
