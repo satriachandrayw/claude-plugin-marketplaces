@@ -173,3 +173,68 @@ Extract:
 - Labels: For PR categorization
 
 ---
+
+## PR Template
+
+### Generate PR Title
+
+**From branch prefix:**
+- `feat/*` → Feature title
+- `fix/*` → Fix title
+- `refactor/*` → Refactor title
+
+**From issue (if linked):**
+```
+[<type>] <issue-title>
+```
+
+**Examples:**
+- `[FEAT] Add user authentication flow`
+- `[FIX] Prevent SQL injection in login`
+- `[REFACTOR] Simplify session management`
+
+### PR Body Structure
+
+```markdown
+## Summary
+
+<1-2 sentence description from git log analysis>
+
+## Changes
+
+- <change 1 from diff analysis>
+- <change 2 from diff analysis>
+- <change 3 from diff analysis>
+
+## Tests
+
+- `<test file 1>`: <what it tests>
+- `<test file 2>`: <what it tests>
+
+<If linked issues>
+Fixes #<issue-number>
+</If>
+
+## Test Plan
+
+- [ ] Run tests: `<test command detected or npm test>`
+- [ ] Verify <key behavior from changes>
+
+## Production Deployment
+
+- [ ] Run migrations (if new migration files detected)
+- [ ] Update env vars
+- [ ] Update prompts (if applicable)
+```
+
+### Migration Detection
+
+Check for migration files:
+
+```bash
+git diff main...HEAD --name-only | grep -i migration
+```
+
+If matches found, include migration step in deployment checklist.
+
+---
