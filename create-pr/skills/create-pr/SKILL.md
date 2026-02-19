@@ -85,3 +85,46 @@ Fixes #<issue>"
 ```
 
 ---
+
+## Context Gathering
+
+### Get Current Branch
+
+```bash
+git branch --show-current
+```
+
+### Get Main Branch
+
+```bash
+git remote show origin | grep "HEAD branch" | sed 's/.*: //'
+# Or default to 'main' or 'master'
+```
+
+### Get Commits Ahead of Main
+
+```bash
+git log main..HEAD --oneline
+# Or: git log origin/main..HEAD --oneline
+```
+
+### Get Diff Summary
+
+```bash
+git diff main...HEAD --stat
+```
+
+### Get Detailed Changes
+
+```bash
+git diff main...HEAD
+```
+
+### Analyze for Summary
+
+Extract:
+- What files changed
+- What functionality was added/modified
+- Key patterns (new feature, bug fix, refactor)
+
+---
