@@ -52,6 +52,17 @@
       },
       "category": "productivity",
       "tags": ["bug-fixing", "tdd", "github", "automation"]
+    },
+    {
+      "name": "create-pr",
+      "source": "./create-pr",
+      "description": "Post-task PR creation with git context analysis, auto-commit, and issue linking",
+      "version": "1.0.0",
+      "author": {
+        "name": "Satria Chandra"
+      },
+      "category": "productivity",
+      "tags": ["pr", "github", "workflow", "automation"]
     }
   ]
 }
