@@ -15,7 +15,7 @@
       "description": "Product Manager skill for creating well-structured GitHub issues from feature requests and bug reports",
       "version": "1.0.1",
       "author": {
-        "name": "Custom"
+        "name": "Satria Chandra"
       },
       "category": "productivity",
       "tags": ["product-management", "github", "issues"]
@@ -26,7 +26,7 @@
       "description": "Agent Knowledge Base - Captures and organizes learnings from external AI agents into a structured knowledge base",
       "version": "1.0.0",
       "author": {
-        "name": "Custom"
+        "name": "Satria Chandra"
       },
       "category": "productivity",
       "tags": ["knowledge-base", "agents", "documentation"]
@@ -37,7 +37,7 @@
       "description": "Random bug hunter that selects files weighted by recency, analyzes with context for bugs, and creates GitHub issues",
       "version": "1.0.0",
       "author": {
-        "name": "Custom"
+        "name": "Satria Chandra"
       },
       "category": "productivity",
       "tags": ["bug-hunting", "code-quality", "security", "automation"]
