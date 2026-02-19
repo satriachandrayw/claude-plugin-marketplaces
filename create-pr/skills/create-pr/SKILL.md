@@ -128,3 +128,48 @@ Extract:
 - Key patterns (new feature, bug fix, refactor)
 
 ---
+
+## Issue Detection
+
+Extract issue numbers from branch names and commits.
+
+### From Branch Name
+
+Patterns to match:
+- `feat/123-description` → Issue #123
+- `fix/456-description` → Issue #456
+- `feature/789-description` → Issue #789
+- `bugfix/101-description` → Issue #101
+
+**Command:**
+```bash
+git branch --show-current | grep -oE '[0-9]+' | head -1
+```
+
+### From Commit Messages
+
+Patterns to match:
+- `Fixes #123`
+- `Closes #456`
+- `#789: description`
+- `issue #101`
+
+**Command:**
+```bash
+git log main..HEAD --format="%s %b" | grep -oE '#[0-9]+' | sort -u
+```
+
+### Fetch Issue Details
+
+For each detected issue:
+
+```bash
+gh issue view 123 --json number,title,body,labels
+```
+
+Extract:
+- Title: For PR context
+- Body: For understanding requirements
+- Labels: For PR categorization
+
+---
