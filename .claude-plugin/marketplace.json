@@ -1,12 +1,12 @@
 {
   "name": "claude-plugin-marketplaces",
   "owner": {
-    "name": "KTP Creator Pro",
-    "email": "local"
+    "name": "Satria Chandra",
+    "email": "satriachandrayw@gmail.com"
   },
   "metadata": {
     "description": "Custom plugins and marketplace for Claude Code skills",
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   "plugins": [
     {
@@ -35,12 +35,23 @@
       "name": "bug-hunter",
       "source": "./bug-hunter",
       "description": "Random bug hunter that selects files weighted by recency, analyzes with context for bugs, and creates GitHub issues",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": {
         "name": "Satria Chandra"
       },
       "category": "productivity",
       "tags": ["bug-hunting", "code-quality", "security", "automation"]
+    },
+    {
+      "name": "bug-fixer",
+      "source": "./bug-fixer",
+      "description": "TDD-based bug fixer that reads GitHub issues, implements fixes, and creates PRs with severity-based batching",
+      "version": "1.0.0",
+      "author": {
+        "name": "Custom"
+      },
+      "category": "productivity",
+      "tags": ["bug-fixing", "tdd", "github", "automation"]
     }
   ]
 }
