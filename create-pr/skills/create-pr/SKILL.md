@@ -292,3 +292,47 @@ gh pr list --head <branch-name> --json number,url
 If PR exists, show URL instead of creating duplicate.
 
 ---
+
+## Complete Workflow
+
+```dot
+digraph create_pr {
+    rankdir=TB;
+
+    "Start" [shape=doublecircle];
+    "Check unstaged changes" [shape=box];
+    "Unstaged changes?" [shape=diamond];
+    "Detect commit type" [shape=box];
+    "Stage & commit" [shape=box];
+    "Get branch info" [shape=box];
+    "Get git log & diff" [shape=box];
+    "Extract issue numbers" [shape=box];
+    "Issues found?" [shape=diamond];
+    "Fetch GitHub issues" [shape=box];
+    "Generate PR content" [shape=box];
+    "PR exists?" [shape=diamond];
+    "Open existing PR" [shape=box];
+    "Push & create PR" [shape=box];
+    "Done" [shape=doublecircle];
+
+    "Start" -> "Check unstaged changes";
+    "Check unstaged changes" -> "Unstaged changes?";
+    "Unstaged changes?" -> "Detect commit type" [label="yes"];
+    "Unstaged changes?" -> "Get branch info" [label="no"];
+    "Detect commit type" -> "Stage & commit";
+    "Stage & commit" -> "Get branch info";
+    "Get branch info" -> "Get git log & diff";
+    "Get git log & diff" -> "Extract issue numbers";
+    "Extract issue numbers" -> "Issues found?";
+    "Issues found?" -> "Fetch GitHub issues" [label="yes"];
+    "Issues found?" -> "Generate PR content" [label="no"];
+    "Fetch GitHub issues" -> "Generate PR content";
+    "Generate PR content" -> "PR exists?";
+    "PR exists?" -> "Open existing PR" [label="yes"];
+    "PR exists?" -> "Push & create PR" [label="no"];
+    "Open existing PR" -> "Done";
+    "Push & create PR" -> "Done";
+}
+```
+
+---
