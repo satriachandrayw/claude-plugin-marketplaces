@@ -336,3 +336,49 @@ digraph create_pr {
 ```
 
 ---
+
+## Example Interaction
+
+**User:** `/pr`
+
+**Create-PR:**
+```
+🚀 Creating PR...
+
+📝 Checking for unstaged changes...
+   Found 2 unstaged files
+   Detected type: feat (new feature files)
+   Committing: "feat: add user profile component"
+   ✓ Committed
+
+📊 Gathering context...
+   Branch: feat/142-add-user-profile
+   Commits: 3 ahead of main
+   Files changed: 5
+
+🔗 Detecting linked issues...
+   Found #142 in branch name
+   Fetching issue details... ✓
+
+📝 Generating PR content...
+
+🚀 Creating PR...
+   ✓ PR #15 created: https://github.com/owner/repo/pull/15
+
+✅ Done!
+   - Auto-committed 2 files
+   - Linked issue #142
+   - PR created with deployment checklist
+```
+
+---
+
+## Notes
+
+- **Conventional commits** - Auto-detect type from changed files
+- **Smart issue linking** - Extract from branch name and commit messages
+- **Migration detection** - Auto-add migration step if migration files changed
+- **Graceful failures** - Continue without issues if fetch fails
+- **No duplicates** - Check for existing PR before creating
+
+---
