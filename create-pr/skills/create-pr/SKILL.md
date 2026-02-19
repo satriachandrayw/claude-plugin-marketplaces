@@ -238,3 +238,36 @@ git diff main...HEAD --name-only | grep -i migration
 If matches found, include migration step in deployment checklist.
 
 ---
+
+## Create PR
+
+### Push Branch (if needed)
+
+```bash
+# Check if branch tracks remote
+git rev-parse --abbrev-ref --symbolic-full-name @{u}
+
+# If no upstream, push with -u
+git push -u origin <branch-name>
+```
+
+### Create PR via gh CLI
+
+```bash
+gh pr create \
+  --title "<PR title>" \
+  --body "$(cat <<'EOF'
+<PR body content>
+EOF
+)"
+```
+
+### Alternative: Open PR Page
+
+If user prefers to review before creating:
+
+```bash
+gh pr create --web
+```
+
+---
