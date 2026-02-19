@@ -4,7 +4,5 @@
   "description": "Post-task PR creation with git context analysis and issue linking",
   "author": {
     "name": "Satria Chandra"
-  },
-  "category": "productivity",
-  "tags": ["pr", "github", "workflow", "automation"]
+  }
 }
