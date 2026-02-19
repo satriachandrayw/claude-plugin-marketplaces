@@ -1,0 +1,8 @@
+{
+  "name": "bug-hunter",
+  "description": "Random bug hunter that selects files weighted by recency, analyzes with context, and creates GitHub issues for approved findings",
+  "author": {
+    "name": "Custom",
+    "email": "local"
+  }
+}
