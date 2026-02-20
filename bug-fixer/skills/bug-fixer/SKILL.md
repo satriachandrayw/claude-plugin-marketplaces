@@ -1,7 +1,7 @@
 ---
 name: bug-fixer
-description: TDD-based bug fixer that reads GitHub issues, implements fixes following TDD, and creates PRs. Batches low-severity issues, individual PRs for medium/high. Use when user says "fix issue", "fix bugs", or "/bug-fixer".
-version: 1.0.0
+description: TDD-based bug fixer that reads GitHub issues without has-pr label, implements fixes in isolated worktrees following TDD, and creates PRs. Batches low-severity issues, individual PRs for medium/high. Use when user says "fix issue", "fix bugs", or "/bug-fixer".
+version: 1.1.0
 ---
 
 # Bug-Fixer Skill
@@ -55,6 +55,27 @@ gh issue view 142 --json number,title,body,labels,state
 gh issue list --label "low" --state open --json number,title,labels
 gh issue list --label "security" --state open --json number,title,labels
 gh issue list --label "bugs" --state open --json number,title,labels
+```
+
+### Filter: No has-pr Label
+
+**Only pick up issues that have NOT been claimed or have a PR yet.**
+
+Filter out issues with `has-pr` label (indicates someone is working on it or PR exists):
+
+```bash
+# Fetch issues without has-pr label
+gh issue list --state open --json number,title,labels --search "-label:has-pr"
+
+# Fetch by label AND without has-pr
+gh issue list --label "low" --state open --json number,title,labels --search "-label:has-pr"
+gh issue list --label "security" --state open --json number,title,labels --search "-label:has-pr"
+```
+
+**Post-fetch filtering in code:**
+```bash
+# After fetching, filter out issues with has-pr label
+gh issue list --state open --json number,title,labels | jq '[.[] | select(.labels[].name | contains("has-pr") | not)]'
 ```
 
 ### Parse Issue Content
@@ -113,6 +134,96 @@ fix/fixing-low-issues
 4. Create plan:
    - Each critical/high/medium → individual PR
    - All low → single batch PR
+```
+
+---
+
+## Worktree Setup
+
+**Before starting any bug fix, ALWAYS set up an isolated git worktree.**
+
+This ensures:
+- Clean isolation from main workspace
+- No conflicts with other work
+- Easy cleanup after PR is merged
+
+### Step 1: Ensure .worktrees is Ignored
+
+```bash
+# Check if .worktrees is already ignored
+git check-ignore -q .worktrees && echo "ignored" || echo "not ignored"
+```
+
+**If NOT ignored:**
+```bash
+# Add to .gitignore
+echo ".worktrees/" >> .gitignore
+git add .gitignore
+git commit -m "chore: add .worktrees to gitignore"
+```
+
+### Step 2: Create Worktree
+
+**Individual Fix:**
+```bash
+# Generate branch name from issue
+BRANCH_NAME="fix/142-sql-injection-auth"
+WORKTREE_PATH=".worktrees/$BRANCH_NAME"
+
+# Create worktree with new branch
+git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME"
+```
+
+**Batch Fix:**
+```bash
+BRANCH_NAME="fix/fixing-low-issues"
+WORKTREE_PATH=".worktrees/$BRANCH_NAME"
+
+git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME"
+```
+
+### Step 3: Navigate to Worktree
+
+```bash
+cd "$WORKTREE_PATH"
+```
+
+### Step 4: Run Project Setup
+
+Auto-detect and run appropriate setup:
+
+```bash
+# Node.js
+if [ -f package.json ]; then npm install; fi
+
+# Rust
+if [ -f Cargo.toml ]; then cargo build; fi
+
+# Python
+if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+if [ -f pyproject.toml ]; then poetry install; fi
+
+# Go
+if [ -f go.mod ]; then go mod download; fi
+```
+
+### Step 5: Verify Clean Baseline
+
+Run tests to ensure worktree starts clean:
+
+```bash
+npm test
+# or project-appropriate command
+```
+
+**If tests fail:** Report failures, ask whether to proceed.
+
+### Step 6: Report Ready
+
+```
+Worktree ready at .worktrees/fix/142-sql-injection-auth
+Tests passing (<N> tests, 0 failures)
+Ready to fix issue #142
 ```
 
 ---
@@ -319,6 +430,20 @@ Fixes #145
 git push -u origin fix/142-sql-injection-auth
 ```
 
+### Add has-pr Label to Issue
+
+**After creating PR, add has-pr label to prevent duplicate work:**
+
+```bash
+gh issue edit 142 --add-label "has-pr"
+```
+
+For batch fixes:
+```bash
+gh issue edit 145 --add-label "has-pr"
+gh issue edit 146 --add-label "has-pr"
+```
+
 ### Create Individual PR
 
 ```bash
@@ -394,6 +519,38 @@ Fixes #145, Fixes #146, Fixes #147
 - [ ] Code review for style consistency
 EOF
 )"
+```
+
+---
+
+## Worktree Cleanup
+
+**After PR is created, clean up the worktree to keep workspace tidy.**
+
+### Remove Worktree
+
+```bash
+# Navigate back to main repo
+cd <project-root>
+
+# Remove the worktree
+git worktree remove .worktrees/fix/142-sql-injection-auth
+
+# Optional: delete the branch if PR is merged
+# git branch -d fix/142-sql-injection-auth
+```
+
+### Cleanup After Batch Fix
+
+```bash
+cd <project-root>
+git worktree remove .worktrees/fix/fixing-low-issues
+```
+
+### List Remaining Worktrees (debug)
+
+```bash
+git worktree list
 ```
 
 ---
@@ -599,11 +756,14 @@ digraph bug_fixer {
 
     "Parse input (issues/labels)" [shape=box];
     "Fetch issues from GitHub" [shape=box];
+    "Filter out has-pr label" [shape=box];
+    "Any issues left?" [shape=diamond];
     "Group by severity" [shape=box];
     "Plan mode?" [shape=diamond];
     "Present plan" [shape=box];
     "User approves?" [shape=diamond];
     "For each issue/group" [shape=box];
+    "Setup worktree (.worktrees/)" [shape=box];
     "Read issue details" [shape=box];
     "Test exists?" [shape=diamond];
     "Write failing test" [shape=box];
@@ -612,21 +772,26 @@ digraph bug_fixer {
     "Tests pass?" [shape=diamond];
     "Can fix?" [shape=diamond];
     "Mark blocked + comment" [shape=box];
-    "Create branch" [shape=box];
     "Commit changes" [shape=box];
     "Push + create PR" [shape=box];
+    "Add has-pr label to issue" [shape=box];
+    "Remove worktree" [shape=box];
     "Update audit log" [shape=box];
     "Done" [shape=doublecircle];
 
     "Parse input (issues/labels)" -> "Fetch issues from GitHub";
-    "Fetch issues from GitHub" -> "Group by severity";
+    "Fetch issues from GitHub" -> "Filter out has-pr label";
+    "Filter out has-pr label" -> "Any issues left?";
+    "Any issues left?" -> "Done" [label="no"];
+    "Any issues left?" -> "Group by severity" [label="yes"];
     "Group by severity" -> "Plan mode?";
     "Plan mode?" -> "Present plan" [label="yes"];
     "Plan mode?" -> "For each issue/group" [label="no"];
     "Present plan" -> "User approves?";
     "User approves?" -> "For each issue/group" [label="yes"];
     "User approves?" -> "Done" [label="no"];
-    "For each issue/group" -> "Read issue details";
+    "For each issue/group" -> "Setup worktree (.worktrees/)";
+    "Setup worktree (.worktrees/)" -> "Read issue details";
     "Read issue details" -> "Test exists?";
     "Test exists?" -> "Write failing test" [label="no"];
     "Test exists?" -> "Implement fix" [label="yes"];
@@ -636,11 +801,12 @@ digraph bug_fixer {
     "Tests pass?" -> "Can fix?" [label="yes"];
     "Tests pass?" -> "Implement fix" [label="no, fix code"];
     "Can fix?" -> "Mark blocked + comment" [label="no"];
-    "Can fix?" -> "Create branch" [label="yes"];
-    "Create branch" -> "Commit changes";
+    "Can fix?" -> "Commit changes" [label="yes"];
     "Commit changes" -> "Push + create PR";
-    "Push + create PR" -> "Update audit log";
-    "Mark blocked + comment" -> "Update audit log";
+    "Push + create PR" -> "Add has-pr label to issue";
+    "Add has-pr label to issue" -> "Remove worktree";
+    "Remove worktree" -> "Update audit log";
+    "Mark blocked + comment" -> "Remove worktree";
     "Update audit log" -> "For each issue/group" [label="more"];
     "Update audit log" -> "Done" [label="all done"];
 }
@@ -662,13 +828,21 @@ digraph bug_fixer {
    ✓ #145 - Unused import in auth.ts (low, code-quality)
    ✓ #146 - Missing error handling (low, code-quality)
 
+🔍 Filtering out issues with has-pr label...
+   All 4 issues available (no has-pr label)
+
 📊 Grouping by severity...
    Individual: #142, #143
    Batch: #145, #146
 
 📂 Processing #142 (critical)...
 
-   Creating branch: fix/142-sql-injection-auth
+   🌳 Setting up worktree...
+      Checking .gitignore... ✓ .worktrees/ is ignored
+      Creating worktree: .worktrees/fix/142-sql-injection-auth
+      Running npm install... ✓
+      Running npm test... ✓ 47 tests pass
+
    Checking for existing tests... none found
    Writing failing test... ✓
    Implementing fix... ✓
@@ -677,12 +851,18 @@ digraph bug_fixer {
    Committing...
    Pushing...
    Creating PR #150... ✓
+   Adding has-pr label to #142... ✓
+   Cleaning up worktree... ✓
 
    ✅ #142 fixed → PR #150
 
 📂 Processing #143 (high)...
 
-   Creating branch: fix/143-race-condition-session
+   🌳 Setting up worktree...
+      Creating worktree: .worktrees/fix/143-race-condition-session
+      Running npm install... ✓
+      Running npm test... ✓ 47 tests pass
+
    Checking for existing tests... found related tests
    Implementing fix... ✓
    Running tests... ✓ all pass
@@ -690,12 +870,17 @@ digraph bug_fixer {
    Committing...
    Pushing...
    Creating PR #151... ✓
+   Adding has-pr label to #143... ✓
+   Cleaning up worktree... ✓
 
    ✅ #143 fixed → PR #151
 
 📂 Processing batch: #145, #146 (low)...
 
-   Creating branch: fix/fixing-low-issues
+   🌳 Setting up worktree...
+      Creating worktree: .worktrees/fix/fixing-low-issues
+      Running npm install... ✓
+      Running npm test... ✓ 47 tests pass
 
    📂 #145: Unused import
       Implementing fix... ✓
@@ -708,6 +893,8 @@ digraph bug_fixer {
    Committing all changes...
    Pushing...
    Creating PR #152... ✓
+   Adding has-pr label to #145, #146... ✓
+   Cleaning up worktree... ✓
 
    ✅ #145, #146 fixed → PR #152 (batch)
 
@@ -717,6 +904,7 @@ digraph bug_fixer {
    - 4 issues processed
    - 3 PRs created (#150, #151, #152)
    - 0 issues blocked
+   - 3 worktrees cleaned up
 ```
 
 ---
@@ -729,3 +917,7 @@ digraph bug_fixer {
 - **Clean history** - Each fix has clear commit message with issue reference
 - **Audit trail** - All fixes logged back to bug-hunter audit log
 - **Graceful failure** - Block unclear issues and continue with others
+- **No has-pr label** - Only pick up issues without has-pr label to avoid duplicate work
+- **Worktree isolation** - Always work in .worktrees/ directory for clean isolation
+- **Worktree cleanup** - Remove worktree after PR is created to keep workspace tidy
+- **has-pr labeling** - Add has-pr label to issue after PR creation to mark as claimed
