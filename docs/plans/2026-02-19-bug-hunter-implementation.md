@@ -52,8 +52,8 @@ drwxrwxr-x 3 satria satria 4096 Feb 19 14:00 skills
   "name": "bug-hunter",
   "description": "Random bug hunter that selects files weighted by recency, analyzes with context, and creates GitHub issues for approved findings",
   "author": {
-    "name": "Custom",
-    "email": "local"
+    "name": "Satria Chandra",
+    "email": "satriachandrayw@gmail.com"
   }
 }
 ```
@@ -810,7 +810,7 @@ Add to the `plugins` array in `.claude-plugin/marketplace.json`:
       "description": "Random bug hunter that selects files weighted by recency, analyzes with context for bugs, and creates GitHub issues",
       "version": "1.0.0",
       "author": {
-        "name": "Custom"
+        "name": "Satria Chandra"
       },
       "category": "productivity",
       "tags": ["bug-hunting", "code-quality", "security", "automation"]

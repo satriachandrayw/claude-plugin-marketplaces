@@ -1,8 +1,8 @@
 {
   "name": "bug-fixer",
-  "description": "TDD-based bug fixer that reads GitHub issues, implements fixes, and creates PRs with severity-based batching",
+  "description": "TDD-based bug fixer that reads GitHub issues, implements fixes, and creates PRs with severity-based batching (max 5 per batch)",
   "author": {
-    "name": "Custom",
-    "email": "local"
+    "name": "Satria Chandra",
+    "email": "satriachandrayw@gmail.com"
   }
 }

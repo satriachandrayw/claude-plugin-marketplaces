@@ -54,8 +54,8 @@ Create file with this content:
   "name": "bug-fixer",
   "description": "TDD-based bug fixer that reads GitHub issues, implements fixes, and creates PRs with severity-based batching",
   "author": {
-    "name": "Custom",
-    "email": "local"
+    "name": "Satria Chandra",
+    "email": "satriachandrayw@gmail.com"
   }
 }
 ```

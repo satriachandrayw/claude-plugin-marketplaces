@@ -1,7 +1,7 @@
 ---
 name: bug-fixer
-description: TDD-based bug fixer that reads GitHub issues without assigned label, implements fixes in isolated worktrees following TDD, and creates PRs. Batches low-severity issues, individual PRs for medium/high. Use when user says "fix issue", "fix bugs", or "/bug-fixer".
-version: 1.2.0
+description: TDD-based bug fixer that reads GitHub issues without assigned label, implements fixes in isolated worktrees following TDD, and creates PRs. Batches low-severity issues (max 5 per PR), individual PRs for medium/high. Use when user says "fix issue", "fix bugs", or "/bug-fixer".
+version: 1.3.0
 ---
 
 # Bug-Fixer Skill
@@ -104,7 +104,9 @@ From issue labels:
 | Critical | Individual | `fix/123-short-description` |
 | High | Individual | `fix/123-short-description` |
 | Medium | Individual | `fix/123-short-description` |
-| Low | Batch | `fix/fixing-low-issues` |
+| Low | Batch (max 5 per PR) | `fix/fixing-low-issues` or `fix/fixing-low-issues-2` |
+
+**Batch Limit:** Maximum 5 low-severity issues per batch PR. If more than 5 low issues exist, create multiple batches.
 
 ### Branch Name Generation
 
@@ -118,7 +120,9 @@ Format: `fix/<issue-number>-<slugified-title>`
 
 **Batch PR:**
 ```
-fix/fixing-low-issues
+fix/fixing-low-issues      # First batch (issues 1-5)
+fix/fixing-low-issues-2    # Second batch (issues 6-10)
+fix/fixing-low-issues-3    # Third batch (issues 11-15)
 ```
 
 ### Grouping Algorithm
@@ -131,9 +135,11 @@ fix/fixing-low-issues
    - high_issues = [issues with high label]
    - medium_issues = [issues with medium label or no severity]
    - low_issues = [issues with low label]
-4. Create plan:
+4. Split low_issues into batches of max 5:
+   - low_batches = chunk(low_issues, 5)
+5. Create plan:
    - Each critical/high/medium → individual PR
-   - All low → single batch PR
+   - Each low batch (max 5) → single batch PR
 ```
 
 ---
@@ -232,7 +238,12 @@ git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME"
 
 **Batch Fix:**
 ```bash
+# Use batch number if multiple batches needed
+BATCH_NUM=1  # Increment for subsequent batches
 BRANCH_NAME="fix/fixing-low-issues"
+if [ $BATCH_NUM -gt 1 ]; then
+  BRANCH_NAME="fix/fixing-low-issues-$BATCH_NUM"
+fi
 WORKTREE_PATH=".worktrees/$BRANCH_NAME"
 
 git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME"
@@ -424,17 +435,21 @@ git commit -m "fix: prevent SQL injection in auth handler
 Fixes #142"
 ```
 
-**Batch Fix:**
+**Batch Fix (max 5 issues per batch):**
 ```bash
 git add <files>
-git commit -m "fix: batch fix for low-severity issues
+git commit -m "fix: batch fix for low-severity issues (1/2)
 
 - Fixes #145: Remove unused import in auth.ts
 - Fixes #146: Add error handling in utils.ts
 - Fixes #147: Extract magic number in config.ts
+- Fixes #148: Remove dead code in helpers.ts
+- Fixes #149: Add missing return type in api.ts
 
-Fixes #145, Fixes #146, Fixes #147"
+Fixes #145, Fixes #146, Fixes #147, Fixes #148, Fixes #149"
 ```
+
+**Note:** If more than 5 low-severity issues exist, create additional batch PRs with suffix `(2/2)`, `(3/3)`, etc.
 
 ---
 
@@ -525,19 +540,26 @@ EOF
 
 ### Create Batch PR
 
+**For each batch of max 5 low-severity issues:**
+
 ```bash
+BATCH_NUM=1  # Increment for subsequent batches
+BATCH_TOTAL=2  # Total number of batches
+
 gh pr create \
-  --title "Fix low-priority code quality issues" \
+  --title "Fix low-priority code quality issues ($BATCH_NUM/$BATCH_TOTAL)" \
   --body "$(cat <<'EOF'
 ## Summary
 
 Batch fix for low-severity issues found by bug-hunter.
 
-## Issues Fixed
+## Issues Fixed (Batch 1/2)
 
 - Fixes #145 - Unused import in auth.ts
 - Fixes #146 - Missing error handling in utils.ts
 - Fixes #147 - Magic number in config.ts
+- Fixes #148 - Remove dead code in helpers.ts
+- Fixes #149 - Add missing return type in api.ts
 
 ## Changes
 
@@ -546,13 +568,15 @@ Batch fix for low-severity issues found by bug-hunter.
 | #145 | `src/handlers/auth.ts` | Removed unused import `formatUser` |
 | #146 | `src/lib/utils.ts` | Added try-catch around JSON.parse |
 | #147 | `src/config.ts` | Extracted `MAX_RETRIES = 3` constant |
+| #148 | `src/helpers.ts` | Removed unused helper function |
+| #149 | `src/api.ts` | Added explicit return type |
 
 ## Tests
 
 - All existing tests pass
 - No new tests needed (code quality fixes)
 
-Fixes #145, Fixes #146, Fixes #147
+Fixes #145, Fixes #146, Fixes #147, Fixes #148, Fixes #149
 
 ## Test Plan
 
@@ -562,6 +586,8 @@ Fixes #145, Fixes #146, Fixes #147
 EOF
 )"
 ```
+
+**Note:** If only one batch, omit the `(1/1)` suffix from title.
 
 ---
 
@@ -751,7 +777,7 @@ When plan mode is triggered, present a plan before executing.
 ```markdown
 ## 📋 Fix Plan
 
-### Issues to Fix (4 total)
+### Issues to Fix (12 total)
 
 | Issue | Severity | Files Affected | Risk |
 |-------|----------|----------------|------|
@@ -759,23 +785,30 @@ When plan mode is triggered, present a plan before executing.
 | #143 | High | `db.ts` | Medium |
 | #145 | Low | `auth.ts` | Low |
 | #146 | Low | `utils.ts` | Low |
+| #147 | Low | `config.ts` | Low |
+| #148 | Low | `helpers.ts` | Low |
+| #149 | Low | `api.ts` | Low |
+| #150 | Low | `logger.ts` | Low |
+| #151 | Low | `cache.ts` | Low |
 
 ### Grouping
 
 - **Individual PR:** #142 (critical), #143 (high)
-- **Batch PR:** #145, #146 (low)
+- **Batch PR 1:** #145, #146, #147, #148, #149 (low, max 5)
+- **Batch PR 2:** #150, #151 (low, remaining)
 
 ### Execution Order
 
 1. #142 - SQL Injection (critical, security)
 2. #143 - Race Condition (high, functional)
-3. Batch: #145, #146 (low, code quality)
+3. Batch 1: #145-#149 (low, code quality, 5 issues)
+4. Batch 2: #150-#151 (low, code quality, 2 issues)
 
 ### Estimated Impact
 
-- Files to change: 4
+- Files to change: 9
 - Tests to add: 2
-- PRs to create: 3
+- PRs to create: 4
 
 ---
 
@@ -801,11 +834,12 @@ digraph bug_fixer {
     "Filter out assigned label" [shape=box];
     "Any issues left?" [shape=diamond];
     "Group by severity" [shape=box];
+    "Split low issues into batches (max 5)" [shape=box];
     "Plan mode?" [shape=diamond];
     "Present plan" [shape=box];
     "User approves?" [shape=diamond];
-    "For each issue/group" [shape=box];
-    "Claim issue (add assigned label)" [shape=box];
+    "For each issue/batch" [shape=box];
+    "Claim issue(s) (add assigned label)" [shape=box];
     "Setup worktree (.worktrees/)" [shape=box];
     "Read issue details" [shape=box];
     "Test exists?" [shape=diamond];
@@ -826,14 +860,15 @@ digraph bug_fixer {
     "Filter out assigned label" -> "Any issues left?";
     "Any issues left?" -> "Done" [label="no"];
     "Any issues left?" -> "Group by severity" [label="yes"];
-    "Group by severity" -> "Plan mode?";
+    "Group by severity" -> "Split low issues into batches (max 5)";
+    "Split low issues into batches (max 5)" -> "Plan mode?";
     "Plan mode?" -> "Present plan" [label="yes"];
-    "Plan mode?" -> "For each issue/group" [label="no"];
+    "Plan mode?" -> "For each issue/batch" [label="no"];
     "Present plan" -> "User approves?";
-    "User approves?" -> "For each issue/group" [label="yes"];
+    "User approves?" -> "For each issue/batch" [label="yes"];
     "User approves?" -> "Done" [label="no"];
-    "For each issue/group" -> "Claim issue (add assigned label)";
-    "Claim issue (add assigned label)" -> "Setup worktree (.worktrees/)";
+    "For each issue/batch" -> "Claim issue(s) (add assigned label)";
+    "Claim issue(s) (add assigned label)" -> "Setup worktree (.worktrees/)";
     "Setup worktree (.worktrees/)" -> "Read issue details";
     "Read issue details" -> "Test exists?";
     "Test exists?" -> "Write failing test" [label="no"];
@@ -849,7 +884,7 @@ digraph bug_fixer {
     "Push + create PR" -> "Remove worktree";
     "Remove worktree" -> "Update audit log";
     "Mark blocked + comment" -> "Remove worktree";
-    "Update audit log" -> "For each issue/group" [label="more"];
+    "Update audit log" -> "For each issue/batch" [label="more"];
     "Update audit log" -> "Done" [label="all done"];
 }
 ```
@@ -858,7 +893,7 @@ digraph bug_fixer {
 
 ## Example Interaction
 
-**User:** `/bug-fixer 142 143 145 146`
+**User:** `/bug-fixer 142 143 145 146 147 148 149 150`
 
 **Bug-Fixer:**
 ```
@@ -869,13 +904,18 @@ digraph bug_fixer {
    ✓ #143 - Race Condition in session.ts (high, bugs)
    ✓ #145 - Unused import in auth.ts (low, code-quality)
    ✓ #146 - Missing error handling (low, code-quality)
+   ✓ #147 - Magic number in config.ts (low, code-quality)
+   ✓ #148 - Dead code in helpers.ts (low, code-quality)
+   ✓ #149 - Missing return type (low, code-quality)
+   ✓ #150 - Unused variable (low, code-quality)
 
 🔍 Filtering out issues with assigned label...
-   All 4 issues available (no assigned label)
+   All 8 issues available (no assigned label)
 
 📊 Grouping by severity...
    Individual: #142, #143
-   Batch: #145, #146
+   Batch 1: #145, #146, #147, #148, #149 (5 issues, max reached)
+   Batch 2: #150 (1 issue, remaining)
 
 📂 Processing #142 (critical)...
 
@@ -894,10 +934,10 @@ digraph bug_fixer {
 
    Committing...
    Pushing...
-   Creating PR #150... ✓
+   Creating PR #151... ✓
    Cleaning up worktree... ✓
 
-   ✅ #142 fixed → PR #150
+   ✅ #142 fixed → PR #151
 
 📂 Processing #143 (high)...
 
@@ -914,14 +954,14 @@ digraph bug_fixer {
 
    Committing...
    Pushing...
-   Creating PR #151... ✓
+   Creating PR #152... ✓
    Cleaning up worktree... ✓
 
-   ✅ #143 fixed → PR #151
+   ✅ #143 fixed → PR #152
 
-📂 Processing batch: #145, #146 (low)...
+📂 Processing batch 1: #145-#149 (5 issues)...
 
-   🏷️ Claiming issues #145, #146... ✓ (added assigned label)
+   🏷️ Claiming issues #145-#149... ✓ (added assigned label)
 
    🌳 Setting up worktree...
       Creating worktree: .worktrees/fix/fixing-low-issues
@@ -934,22 +974,52 @@ digraph bug_fixer {
    📂 #146: Missing error handling
       Implementing fix... ✓
 
+   📂 #147: Magic number
+      Implementing fix... ✓
+
+   📂 #148: Dead code
+      Implementing fix... ✓
+
+   📂 #149: Missing return type
+      Implementing fix... ✓
+
    Running tests... ✓ all pass
 
    Committing all changes...
    Pushing...
-   Creating PR #152... ✓
+   Creating PR #153 (1/2)... ✓
    Cleaning up worktree... ✓
 
-   ✅ #145, #146 fixed → PR #152 (batch)
+   ✅ #145-#149 fixed → PR #153 (batch 1/2)
+
+📂 Processing batch 2: #150 (1 issue)...
+
+   🏷️ Claiming issue #150... ✓ (added assigned label)
+
+   🌳 Setting up worktree...
+      Creating worktree: .worktrees/fix/fixing-low-issues-2
+      Running npm install... ✓
+      Running npm test... ✓ 47 tests pass
+
+   📂 #150: Unused variable
+      Implementing fix... ✓
+
+   Running tests... ✓ all pass
+
+   Committing...
+   Pushing...
+   Creating PR #154 (2/2)... ✓
+   Cleaning up worktree... ✓
+
+   ✅ #150 fixed → PR #154 (batch 2/2)
 
 📝 Updating audit log...
 
 🎉 Bug fix complete!
-   - 4 issues processed
-   - 3 PRs created (#150, #151, #152)
+   - 8 issues processed
+   - 4 PRs created (#151, #152, #153, #154)
    - 0 issues blocked
-   - 3 worktrees cleaned up
+   - 4 worktrees cleaned up
 ```
 
 ---
@@ -958,7 +1028,7 @@ digraph bug_fixer {
 
 - **TDD discipline** - Always write/verify tests before considering fix complete
 - **No duplicates** - Check for existing tests before writing new ones
-- **Severity batching** - Low issues batched, others individual
+- **Severity batching** - Low issues batched (max 5 per PR), others individual
 - **Clean history** - Each fix has clear commit message with issue reference
 - **Audit trail** - All fixes logged back to bug-hunter audit log
 - **Graceful failure** - Block unclear issues and continue with others
@@ -966,3 +1036,4 @@ digraph bug_fixer {
 - **Worktree isolation** - Always work in .worktrees/ directory for clean isolation
 - **Worktree cleanup** - Remove worktree after PR is created to keep workspace tidy
 - **Claim early** - Add assigned label to issue BEFORE starting work to prevent duplicate effort
+- **Batch size limit** - Maximum 5 low-severity issues per batch PR to keep reviews manageable
