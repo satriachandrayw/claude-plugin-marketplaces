@@ -1,0 +1,8 @@
+{
+  "name": "pr-review",
+  "description": "Comprehensive PR code review with impact analysis, security scanning, convention checking, and architectural assessment",
+  "author": {
+    "name": "Satria Chandra",
+    "email": "satriachandrayw@gmail.com"
+  }
+}
