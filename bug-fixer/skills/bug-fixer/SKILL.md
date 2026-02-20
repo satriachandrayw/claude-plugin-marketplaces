@@ -1,7 +1,7 @@
 ---
 name: bug-fixer
-description: TDD-based bug fixer that reads GitHub issues without has-pr label, implements fixes in isolated worktrees following TDD, and creates PRs. Batches low-severity issues, individual PRs for medium/high. Use when user says "fix issue", "fix bugs", or "/bug-fixer".
-version: 1.1.0
+description: TDD-based bug fixer that reads GitHub issues without assigned label, implements fixes in isolated worktrees following TDD, and creates PRs. Batches low-severity issues, individual PRs for medium/high. Use when user says "fix issue", "fix bugs", or "/bug-fixer".
+version: 1.2.0
 ---
 
 # Bug-Fixer Skill
@@ -57,25 +57,25 @@ gh issue list --label "security" --state open --json number,title,labels
 gh issue list --label "bugs" --state open --json number,title,labels
 ```
 
-### Filter: No has-pr Label
+### Filter: No assigned Label
 
-**Only pick up issues that have NOT been claimed or have a PR yet.**
+**Only pick up issues that have NOT been claimed yet.**
 
-Filter out issues with `has-pr` label (indicates someone is working on it or PR exists):
+Filter out issues with `assigned` label (indicates someone is working on it):
 
 ```bash
-# Fetch issues without has-pr label
-gh issue list --state open --json number,title,labels --search "-label:has-pr"
+# Fetch issues without assigned label
+gh issue list --state open --json number,title,labels --search "-label:assigned"
 
-# Fetch by label AND without has-pr
-gh issue list --label "low" --state open --json number,title,labels --search "-label:has-pr"
-gh issue list --label "security" --state open --json number,title,labels --search "-label:has-pr"
+# Fetch by label AND without assigned
+gh issue list --label "low" --state open --json number,title,labels --search "-label:assigned"
+gh issue list --label "security" --state open --json number,title,labels --search "-label:assigned"
 ```
 
 **Post-fetch filtering in code:**
 ```bash
-# After fetching, filter out issues with has-pr label
-gh issue list --state open --json number,title,labels | jq '[.[] | select(.labels[].name | contains("has-pr") | not)]'
+# After fetching, filter out issues with assigned label
+gh issue list --state open --json number,title,labels | jq '[.[] | select(.labels[].name | contains("assigned") | not)]'
 ```
 
 ### Parse Issue Content
@@ -135,6 +135,62 @@ fix/fixing-low-issues
    - Each critical/high/medium → individual PR
    - All low → single batch PR
 ```
+
+---
+
+## Claim Issues
+
+**Before starting work on any issue, claim it by adding the `assigned` label.**
+
+This prevents duplicate work by signaling to other agents or developers that someone is already working on the issue.
+
+### Claim Individual Issues
+
+For each issue that will be processed individually (critical, high, medium):
+
+```bash
+# Claim the issue before starting work
+gh issue edit 142 --add-label "assigned"
+```
+
+### Claim Batch Issues
+
+For batch fixes (low severity), claim ALL issues in the batch at once:
+
+```bash
+# Claim all issues in the batch
+gh issue edit 145 --add-label "assigned"
+gh issue edit 146 --add-label "assigned"
+```
+
+### Claim All Issues at Once (Alternative)
+
+If you want to claim all issues upfront before any work begins:
+
+```bash
+# Claim multiple issues at once
+for issue in 142 143 145 146; do
+  gh issue edit $issue --add-label "assigned"
+done
+```
+
+### When to Claim
+
+| Scenario | When to Claim |
+|----------|---------------|
+| Individual fix | Claim before setting up worktree |
+| Batch fix | Claim all batch issues before setting up worktree |
+| Plan mode | Claim after user approves plan, before execution |
+
+### Verification
+
+After claiming, verify the label was added:
+
+```bash
+gh issue view 142 --json labels --jq '.labels[].name'
+```
+
+Expected output should include `assigned`.
 
 ---
 
@@ -428,20 +484,6 @@ Fixes #145
 
 ```bash
 git push -u origin fix/142-sql-injection-auth
-```
-
-### Add has-pr Label to Issue
-
-**After creating PR, add has-pr label to prevent duplicate work:**
-
-```bash
-gh issue edit 142 --add-label "has-pr"
-```
-
-For batch fixes:
-```bash
-gh issue edit 145 --add-label "has-pr"
-gh issue edit 146 --add-label "has-pr"
 ```
 
 ### Create Individual PR
@@ -756,13 +798,14 @@ digraph bug_fixer {
 
     "Parse input (issues/labels)" [shape=box];
     "Fetch issues from GitHub" [shape=box];
-    "Filter out has-pr label" [shape=box];
+    "Filter out assigned label" [shape=box];
     "Any issues left?" [shape=diamond];
     "Group by severity" [shape=box];
     "Plan mode?" [shape=diamond];
     "Present plan" [shape=box];
     "User approves?" [shape=diamond];
     "For each issue/group" [shape=box];
+    "Claim issue (add assigned label)" [shape=box];
     "Setup worktree (.worktrees/)" [shape=box];
     "Read issue details" [shape=box];
     "Test exists?" [shape=diamond];
@@ -774,14 +817,13 @@ digraph bug_fixer {
     "Mark blocked + comment" [shape=box];
     "Commit changes" [shape=box];
     "Push + create PR" [shape=box];
-    "Add has-pr label to issue" [shape=box];
     "Remove worktree" [shape=box];
     "Update audit log" [shape=box];
     "Done" [shape=doublecircle];
 
     "Parse input (issues/labels)" -> "Fetch issues from GitHub";
-    "Fetch issues from GitHub" -> "Filter out has-pr label";
-    "Filter out has-pr label" -> "Any issues left?";
+    "Fetch issues from GitHub" -> "Filter out assigned label";
+    "Filter out assigned label" -> "Any issues left?";
     "Any issues left?" -> "Done" [label="no"];
     "Any issues left?" -> "Group by severity" [label="yes"];
     "Group by severity" -> "Plan mode?";
@@ -790,7 +832,8 @@ digraph bug_fixer {
     "Present plan" -> "User approves?";
     "User approves?" -> "For each issue/group" [label="yes"];
     "User approves?" -> "Done" [label="no"];
-    "For each issue/group" -> "Setup worktree (.worktrees/)";
+    "For each issue/group" -> "Claim issue (add assigned label)";
+    "Claim issue (add assigned label)" -> "Setup worktree (.worktrees/)";
     "Setup worktree (.worktrees/)" -> "Read issue details";
     "Read issue details" -> "Test exists?";
     "Test exists?" -> "Write failing test" [label="no"];
@@ -803,8 +846,7 @@ digraph bug_fixer {
     "Can fix?" -> "Mark blocked + comment" [label="no"];
     "Can fix?" -> "Commit changes" [label="yes"];
     "Commit changes" -> "Push + create PR";
-    "Push + create PR" -> "Add has-pr label to issue";
-    "Add has-pr label to issue" -> "Remove worktree";
+    "Push + create PR" -> "Remove worktree";
     "Remove worktree" -> "Update audit log";
     "Mark blocked + comment" -> "Remove worktree";
     "Update audit log" -> "For each issue/group" [label="more"];
@@ -828,14 +870,16 @@ digraph bug_fixer {
    ✓ #145 - Unused import in auth.ts (low, code-quality)
    ✓ #146 - Missing error handling (low, code-quality)
 
-🔍 Filtering out issues with has-pr label...
-   All 4 issues available (no has-pr label)
+🔍 Filtering out issues with assigned label...
+   All 4 issues available (no assigned label)
 
 📊 Grouping by severity...
    Individual: #142, #143
    Batch: #145, #146
 
 📂 Processing #142 (critical)...
+
+   🏷️ Claiming issue #142... ✓ (added assigned label)
 
    🌳 Setting up worktree...
       Checking .gitignore... ✓ .worktrees/ is ignored
@@ -851,12 +895,13 @@ digraph bug_fixer {
    Committing...
    Pushing...
    Creating PR #150... ✓
-   Adding has-pr label to #142... ✓
    Cleaning up worktree... ✓
 
    ✅ #142 fixed → PR #150
 
 📂 Processing #143 (high)...
+
+   🏷️ Claiming issue #143... ✓ (added assigned label)
 
    🌳 Setting up worktree...
       Creating worktree: .worktrees/fix/143-race-condition-session
@@ -870,12 +915,13 @@ digraph bug_fixer {
    Committing...
    Pushing...
    Creating PR #151... ✓
-   Adding has-pr label to #143... ✓
    Cleaning up worktree... ✓
 
    ✅ #143 fixed → PR #151
 
 📂 Processing batch: #145, #146 (low)...
+
+   🏷️ Claiming issues #145, #146... ✓ (added assigned label)
 
    🌳 Setting up worktree...
       Creating worktree: .worktrees/fix/fixing-low-issues
@@ -893,7 +939,6 @@ digraph bug_fixer {
    Committing all changes...
    Pushing...
    Creating PR #152... ✓
-   Adding has-pr label to #145, #146... ✓
    Cleaning up worktree... ✓
 
    ✅ #145, #146 fixed → PR #152 (batch)
@@ -917,7 +962,7 @@ digraph bug_fixer {
 - **Clean history** - Each fix has clear commit message with issue reference
 - **Audit trail** - All fixes logged back to bug-hunter audit log
 - **Graceful failure** - Block unclear issues and continue with others
-- **No has-pr label** - Only pick up issues without has-pr label to avoid duplicate work
+- **No assigned label** - Only pick up issues without assigned label to avoid duplicate work
 - **Worktree isolation** - Always work in .worktrees/ directory for clean isolation
 - **Worktree cleanup** - Remove worktree after PR is created to keep workspace tidy
-- **has-pr labeling** - Add has-pr label to issue after PR creation to mark as claimed
+- **Claim early** - Add assigned label to issue BEFORE starting work to prevent duplicate effort
