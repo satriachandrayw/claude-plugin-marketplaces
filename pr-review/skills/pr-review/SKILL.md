@@ -96,10 +96,8 @@ env | grep -E '^(CI|GITHUB_ACTIONS|GITHUB_TOKEN|PR_NUMBER)='
 ## Pipeline Overview
 
 ```
-PHASE 1: GATHER (Parallel)
-  Git diff + commits (Bash)
-  Context queries (auggie codebase-retrieval OR fallback)
-  Queries: impact trace, related modules, similar patterns
+PHASE 1: GATHER (Spawn gather-context agent via Task tool)
+  gather-context.md        Returns: diff, commits, changed_files, impact_trace
 
 PHASE 2: ANALYZE (Parallel via Task tool)
   security-analyzer.md     Security findings
@@ -117,69 +115,39 @@ PHASE 3: SYNTHESIZE (Sequential)
 
 ## Phase 1: Gather Context
 
-Collect information about the changes before analysis.
+Spawn the gather-context agent to collect information about the changes.
 
-### Step 1.1: Get Git Diff and Commits
+### Step 1.1: Spawn Gather-Context Agent
 
-```bash
-# Get the diff
-git diff $BASE_SHA..$HEAD_SHA
+Use the Task tool to spawn the gather-context agent:
 
-# Get commit messages
-git log $BASE_SHA..$HEAD_SHA --oneline
+**Task Definition:**
+- **subject:** "Gather PR Context"
+- **description:** |
+    Gather context for PR review.
 
-# Get changed files list
-git diff $BASE_SHA..$HEAD_SHA --name-only
+    **Inputs:**
+    - BASE_SHA: [base commit SHA]
+    - HEAD_SHA: [head commit SHA]
+    - ENVIRONMENT: [local or ci]
 
-# Get changed files stats
-git diff $BASE_SHA..$HEAD_SHA --stat
-```
+    **Agent Definition:** Follow the agent definition in `pr-review/agents/gather-context.md`
 
-Store outputs for use by analyzers.
+    **Expected Outputs:**
+    - diff: The git diff between base and head
+    - commits: List of commit messages in range
+    - changed_files: List of changed files with stats
+    - impact_trace: Files that depend on changed files
 
-### Step 1.2: Gather Codebase Context
+### Step 1.2: Collect Gathered Context
 
-Use `mcp__auggie-local__codebase-retrieval` if available, otherwise use Grep/Glob fallback.
+Wait for the gather-context agent to complete and collect its outputs:
+- `diff` - Full git diff
+- `commits` - Commit messages in range
+- `changed_files` - List of changed files with stats
+- `impact_trace` - Dependency analysis
 
-**Context to gather:**
-
-1. **Impact Trace:** For each changed file, find what imports/depends on it
-   ```
-   Query: "What files depend on or import [changed-file]? What is the call graph from this file?"
-   ```
-
-2. **Related Modules:** Find related files in same feature area
-   ```
-   Query: "What are the related modules and files for [feature-area]? What is the module structure?"
-   ```
-
-3. **Similar Patterns:** Find similar code patterns for comparison
-   ```
-   Query: "Find similar implementations of [pattern] in the codebase. How is this typically done?"
-   ```
-
-### Step 1.3: Prepare Context Bundle
-
-Compile gathered context into a structured format:
-
-```markdown
-## Context Bundle
-
-### Changed Files
-[List of changed files with stats]
-
-### Commits
-[Commit messages in range]
-
-### Diff Summary
-[Brief summary of changes]
-
-### Dependencies
-[Files that depend on changed files]
-
-### Related Modules
-[Related files and modules]
-```
+These outputs will be passed to Phase 2 analyzers.
 
 ---
 
@@ -192,11 +160,11 @@ Spawn four specialized analyzers using the Task tool. Each analyzer receives the
 All analyzer definitions are in:
 ```
 pr-review/agents/
-  gather-context.md       # Not used in Phase 2 - context already gathered
-  security-analyzer.md    # Security vulnerability detection
-  convention-checker.md   # Code convention violations
-  impact-analyzer.md      # Impact and architectural assessment
-  pr-classifier.md        # PR type classification
+  gather-context.md       # Phase 1: Gathers diff, commits, changed_files, impact_trace
+  security-analyzer.md    # Phase 2: Security vulnerability detection
+  convention-checker.md   # Phase 2: Code convention violations
+  impact-analyzer.md      # Phase 2: Impact and architectural assessment
+  pr-classifier.md        # Phase 2: PR type classification
 ```
 
 ### Step 2.1: Spawn Analyzers
@@ -324,8 +292,7 @@ digraph pr_review {
 
     "Detect Environment" [shape=diamond];
     "Parse Arguments" [shape=box];
-    "Get Git Diff" [shape=box];
-    "Gather Codebase Context" [shape=box];
+    "Spawn gather-context" [shape=box];
     "Spawn security-analyzer" [shape=box];
     "Spawn convention-checker" [shape=box];
     "Spawn impact-analyzer" [shape=box];
@@ -338,12 +305,11 @@ digraph pr_review {
     "Done" [shape=doublecircle];
 
     "Detect Environment" -> "Parse Arguments";
-    "Parse Arguments" -> "Get Git Diff";
-    "Get Git Diff" -> "Gather Codebase Context";
-    "Gather Codebase Context" -> "Spawn security-analyzer";
-    "Gather Codebase Context" -> "Spawn convention-checker";
-    "Gather Codebase Context" -> "Spawn impact-analyzer";
-    "Gather Codebase Context" -> "Spawn pr-classifier";
+    "Parse Arguments" -> "Spawn gather-context";
+    "Spawn gather-context" -> "Spawn security-analyzer";
+    "Spawn gather-context" -> "Spawn convention-checker";
+    "Spawn gather-context" -> "Spawn impact-analyzer";
+    "Spawn gather-context" -> "Spawn pr-classifier";
     "Spawn security-analyzer" -> "Collect Results";
     "Spawn convention-checker" -> "Collect Results";
     "Spawn impact-analyzer" -> "Collect Results";
